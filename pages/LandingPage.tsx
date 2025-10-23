@@ -235,7 +235,8 @@ const LandingPage: React.FC = () => {
         return <div className="hero-background bg-cover bg-center" style={{backgroundImage: `url(${config.hero.mediaUrl})`}}></div>;
     };
 
-    const enabledSocials = Object.entries(config.socials).filter(([, val]) => val.enabled && val.url);
+    // FIX: Cast `val` to avoid `unknown` type error with Object.entries.
+    const enabledSocials = Object.entries(config.socials).filter(([, val]) => (val as { enabled: boolean, url: string }).enabled && (val as { enabled: boolean, url: string }).url);
 
     return (
         <div className="bg-soft-gray-100 dark:bg-gray-900 min-h-screen font-sans">
@@ -308,8 +309,10 @@ const LandingPage: React.FC = () => {
                     {enabledSocials.length > 0 && (
                         <div className="flex items-center space-x-4 mt-4 md:mt-0">
                             {enabledSocials.map(([key, value]) => {
+                                // FIX: Cast `value` to access its properties safely.
+                                const socialValue = value as { url: string };
                                 const Icon = socialIcons[key];
-                                const href = key === 'email' ? `mailto:${value.url}` : value.url.startsWith('http') ? value.url : `https://${value.url}`;
+                                const href = key === 'email' ? `mailto:${socialValue.url}` : socialValue.url.startsWith('http') ? socialValue.url : `https://${socialValue.url}`;
                                 return (
                                     <a key={key} href={href} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-clinical-blue dark:text-gray-400 dark:hover:text-clinical-blue transition-colors">
                                         <Icon className="w-6 h-6" />

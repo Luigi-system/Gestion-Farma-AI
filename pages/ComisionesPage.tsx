@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../services/supabaseClient';
-import { ComisionRegla, ComisionGenerada, Product, Sale } from '../types';
+import { ComisionRegla, ComisionGenerada, Product, Sale, Sede, Empresa } from '../types';
 import DataTable from '../components/DataTable';
 import SaleDetailModal from '../components/SaleDetailModal';
 import { AwardIcon, DollarSignIcon, PackageIcon, CashRegisterIcon, PlusCircleIcon, EditIcon, TrashIcon } from '../components/icons';
@@ -50,7 +50,7 @@ const TabButton: React.FC<{ tabId: string; label: string; activeTab: string; set
 
 // --- VISTA PARA VENDEDORES ---
 const MisComisionesView: React.FC = () => {
-    const { user: authUser } = useAuth();
+    const { user: authUser, sede, empresa } = useAuth();
     const [comisiones, setComisiones] = useState<(ComisionGenerada & { detalle_ventas: { subtotal: number } | null, productos: { nombre: string } | null, ventas: Sale | null })[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -74,8 +74,8 @@ const MisComisionesView: React.FC = () => {
     }, [period]);
 
     const fetchComisiones = useCallback(async () => {
-        if (!authUser || !authUser.email) {
-            setError("No se ha podido identificar al usuario. Por favor, inicie sesión de nuevo.");
+        if (!authUser || !authUser.email || !sede || !empresa) {
+            setError("No se ha podido identificar al usuario o su sede/empresa. Por favor, inicie sesión de nuevo.");
             setLoading(false);
             return;
         }
@@ -97,6 +97,8 @@ const MisComisionesView: React.FC = () => {
             .from('comisiones_generadas')
             .select(`*, detalle_ventas(subtotal), productos(nombre), ventas(*)`)
             .eq('usuario_id', userProfile.id)
+            .eq('sede_id', sede.id)
+            .eq('empresa_id', empresa.id)
             .gte('fecha_generacion', startDate)
             .lte('fecha_generacion', endDate)
             .order('fecha_generacion', { ascending: false });
@@ -107,7 +109,7 @@ const MisComisionesView: React.FC = () => {
             setComisiones((data as any) || []);
         }
         setLoading(false);
-    }, [authUser, startDate, endDate]);
+    }, [authUser, startDate, endDate, sede, empresa]);
 
     useEffect(() => {
         fetchComisiones();
@@ -187,6 +189,7 @@ const StatCard: React.FC<{icon: React.ReactNode, title: string, value: string | 
 
 // --- VISTA PARA ADMINISTRADORES ---
 const AdminReglasView: React.FC = () => {
+    const { sede, empresa } = useAuth();
     const [reglas, setReglas] = useState<ComisionRegla[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -194,15 +197,21 @@ const AdminReglasView: React.FC = () => {
     const [currentRegla, setCurrentRegla] = useState<Partial<ComisionRegla> | null>(null);
 
     const fetchReglas = useCallback(async () => {
+        if (!sede || !empresa) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         const { data, error } = await supabase
             .from('comisiones_reglas')
             .select(`*, productos (nombre)`)
+            .eq('sede_id', sede.id)
+            .eq('empresa_id', empresa.id)
             .order('created_at', { ascending: false });
         if (error) setError(`Error al cargar reglas: ${error.message}`);
         else setReglas((data as any) || []);
         setLoading(false);
-    }, []);
+    }, [sede, empresa]);
 
     useEffect(() => {
         fetchReglas();
@@ -237,13 +246,13 @@ const AdminReglasView: React.FC = () => {
                 </button>
             </div>
             {loading ? <div className="text-center py-10">Cargando...</div> : error ? <div className="text-red-500">{error}</div> : <DataTable data={reglas} columns={columns} title="" />}
-            {isModalOpen && <ReglaModal regla={currentRegla} onClose={() => setIsModalOpen(false)} onSave={() => { setIsModalOpen(false); fetchReglas(); }} />}
+            {isModalOpen && <ReglaModal regla={currentRegla} onClose={() => setIsModalOpen(false)} onSave={() => { setIsModalOpen(false); fetchReglas(); }} sede={sede} empresa={empresa} />}
         </div>
     );
 };
 
 // --- MODAL PARA REGLAS ---
-const ReglaModal: React.FC<{ regla: Partial<ComisionRegla> | null; onClose: () => void; onSave: () => void; }> = ({ regla, onClose, onSave }) => {
+const ReglaModal: React.FC<{ regla: Partial<ComisionRegla> | null; onClose: () => void; onSave: () => void; sede: Sede | null; empresa: Empresa | null; }> = ({ regla, onClose, onSave, sede, empresa }) => {
     const [currentRegla, setCurrentRegla] = useState(regla);
     const [productSearch, setProductSearch] = useState('');
     const [productSuggestions, setProductSuggestions] = useState<Product[]>([]);
@@ -261,14 +270,19 @@ const ReglaModal: React.FC<{ regla: Partial<ComisionRegla> | null; onClose: () =
     }, [currentRegla]);
 
     useEffect(() => {
-        if (productSearch.length < 2) { setProductSuggestions([]); return; }
+        if (productSearch.length < 2 || !sede || !empresa) { setProductSuggestions([]); return; }
         const search = async () => {
-            const { data } = await supabase.from('productos').select('id, nombre').ilike('nombre', `%${productSearch}%`).limit(5);
+            const { data } = await supabase
+                .from('productos')
+                .select('id, nombre')
+                .eq('sede_id', sede.id)
+                .eq('empresa_id', empresa.id)
+                .ilike('nombre', `%${productSearch}%`).limit(5);
             setProductSuggestions(data || []);
         };
         const debounce = setTimeout(search, 300);
         return () => clearTimeout(debounce);
-    }, [productSearch]);
+    }, [productSearch, sede, empresa]);
 
     const handleSelectProduct = (product: Product) => {
         setSelectedProduct(product);
@@ -287,15 +301,17 @@ const ReglaModal: React.FC<{ regla: Partial<ComisionRegla> | null; onClose: () =
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!currentRegla || !currentRegla.producto_id) {
-            alert("Selecciona un producto.");
+        if (!currentRegla || !currentRegla.producto_id || !sede || !empresa) {
+            alert("Selecciona un producto y asegúrate de que la sesión sea válida.");
             return;
         }
         setIsSaving(true);
         const { id, ...dataToSave } = currentRegla;
+        const dataWithTenant = { ...dataToSave, sede_id: sede.id, empresa_id: empresa.id };
+
         const {error} = id 
-            ? await supabase.from('comisiones_reglas').update(dataToSave).eq('id', id)
-            : await supabase.from('comisiones_reglas').insert([dataToSave]);
+            ? await supabase.from('comisiones_reglas').update(dataWithTenant).eq('id', id)
+            : await supabase.from('comisiones_reglas').insert([dataWithTenant]);
         
         if (error) alert(`Error: ${error.message}`);
         else onSave();

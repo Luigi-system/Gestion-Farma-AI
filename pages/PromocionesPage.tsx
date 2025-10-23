@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '../services/supabaseClient';
 import DataTable from '../components/DataTable';
 import { Promocion, ProductoCanje, Client } from '../types';
+import { useAuth } from '../components/Auth';
 
 const EditIcon: React.FC<{ className?: string }> = ({ className }) => (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -30,6 +31,7 @@ const CloseIcon = () => <svg className="h-5 w-5" fill="currentColor" viewBox="0 
 type NotificationType = 'success' | 'warning' | 'error' | 'info';
 
 const PromocionesPage: React.FC = () => {
+    const { sede, empresa, user } = useAuth();
     const [promociones, setPromociones] = useState<Promocion[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -67,10 +69,16 @@ const PromocionesPage: React.FC = () => {
     }, [notification]);
 
     const fetchPromociones = useCallback(async () => {
+        if (!sede || !empresa) {
+            setLoading(false);
+            return;
+        }
         setLoading(true);
         const { data, error } = await supabase
             .from('promociones')
             .select('*')
+            .eq('sede_id', sede.id)
+            .eq('empresa_id', empresa.id)
             .order('fecha_inicio', { ascending: false });
 
         if (error) {
@@ -80,14 +88,14 @@ const PromocionesPage: React.FC = () => {
             setError(null);
         }
         setLoading(false);
-    }, []);
+    }, [sede, empresa]);
 
     useEffect(() => {
         fetchPromociones();
     }, [fetchPromociones]);
 
     useEffect(() => {
-        if (clientSearch.length < 2) {
+        if (clientSearch.length < 2 || !sede || !empresa) {
             setFoundClients([]);
             return;
         }
@@ -95,13 +103,15 @@ const PromocionesPage: React.FC = () => {
             const { data } = await supabase
                 .from('clientes')
                 .select('*')
+                .eq('sede_id', sede.id)
+                .eq('empresa_id', empresa.id)
                 .or(`nombres.ilike.%${clientSearch}%,dni.ilike.%${clientSearch}%`)
                 .limit(5);
             setFoundClients(data || []);
         };
         const debounce = setTimeout(search, 300);
         return () => clearTimeout(debounce);
-    }, [clientSearch]);
+    }, [clientSearch, sede, empresa]);
 
     const openModalForNew = () => {
         const today = new Date().toISOString().split('T')[0];
@@ -130,11 +140,14 @@ const PromocionesPage: React.FC = () => {
     };
     
     const fetchExchangeProducts = useCallback(async (promoId: number) => {
+        if (!sede || !empresa) return;
         setLoadingExchangeProducts(true);
         const { data, error } = await supabase
             .from('productos_canje')
             .select('*')
             .eq('id_promo', promoId)
+            .eq('sede_id', sede.id)
+            .eq('empresa_id', empresa.id)
             .order('nombre');
         
         if (error) {
@@ -144,7 +157,7 @@ const PromocionesPage: React.FC = () => {
             setExchangeProducts(data || []);
         }
         setLoadingExchangeProducts(false);
-    }, []);
+    }, [sede, empresa]);
 
     const openProductsModal = (promocion: Promocion) => {
         setPromotionForProducts(promocion);
@@ -169,7 +182,7 @@ const PromocionesPage: React.FC = () => {
 
     const handleAddExchangeProduct = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!newExchangeProduct.nombre || !newExchangeProduct.puntos_requeridos || !promotionForProducts) return;
+        if (!newExchangeProduct.nombre || !newExchangeProduct.puntos_requeridos || !promotionForProducts || !sede || !empresa) return;
         
         const stock = newExchangeProduct.stock ?? 0;
         const estado = stock > 0 ? 'Disponible' : 'Agotado';
@@ -180,6 +193,8 @@ const PromocionesPage: React.FC = () => {
             puntos_requeridos: newExchangeProduct.puntos_requeridos,
             stock: stock,
             estado: estado,
+            sede_id: sede.id,
+            empresa_id: empresa.id,
         });
 
         if (error) {
@@ -203,8 +218,15 @@ const PromocionesPage: React.FC = () => {
     };
 
     const fetchRedeemProductsForModal = async (promoId: number) => {
+        if (!sede || !empresa) return;
         setLoadingRedeemProducts(true);
-        const { data, error } = await supabase.from('productos_canje').select('*').eq('id_promo', promoId).gt('stock', 0);
+        const { data, error } = await supabase
+            .from('productos_canje')
+            .select('*')
+            .eq('id_promo', promoId)
+            .eq('sede_id', sede.id)
+            .eq('empresa_id', empresa.id)
+            .gt('stock', 0);
          if (error) {
             showNotification('No se pudieron cargar los productos para canje.', 'error');
             setRedeemProducts([]);
@@ -230,7 +252,7 @@ const PromocionesPage: React.FC = () => {
     };
 
     const handleRedeemPoints = async (product: ProductoCanje) => {
-        if (!selectedClient || redeemingProductId || !promotionForRedeem) return;
+        if (!selectedClient || redeemingProductId || !promotionForRedeem || !sede || !empresa || !user) return;
         if ((selectedClient.puntos || 0) < product.puntos_requeridos) {
             showNotification('El cliente no tiene puntos suficientes.', 'warning');
             return;
@@ -249,9 +271,11 @@ const PromocionesPage: React.FC = () => {
                 cliente: selectedClient.nombres,
                 producto_id: product.id,
                 producto: product.nombre,
-                usuario: 'admin_user',
+                usuario: user.email || 'sistema',
                 puntos_gastados: product.puntos_requeridos,
-                fecha: new Date().toISOString()
+                fecha: new Date().toISOString(),
+                sede_id: sede.id,
+                empresa_id: empresa.id,
             });
             if (historyError) throw new Error(`Al registrar el canje: ${historyError.message}`);
             
@@ -290,18 +314,20 @@ const PromocionesPage: React.FC = () => {
 
     const handleFormSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!currentPromocion) return;
+        if (!currentPromocion || !sede || !empresa) return;
 
         const { id, ...promoData } = currentPromocion;
         if (promoData.multiplicador === null || promoData.multiplicador === undefined || isNaN(promoData.multiplicador)) {
             promoData.multiplicador = null;
         }
 
+        const dataWithTenant = { ...promoData, sede_id: sede.id, empresa_id: empresa.id };
+
         let response;
         if (id) {
-            response = await supabase.from('promociones').update(promoData).eq('id', id);
+            response = await supabase.from('promociones').update(dataWithTenant).eq('id', id);
         } else {
-            response = await supabase.from('promociones').insert([promoData]);
+            response = await supabase.from('promociones').insert([dataWithTenant]);
         }
 
         if (response.error) {
@@ -532,7 +558,7 @@ const PromocionesPage: React.FC = () => {
                                                         className="px-3 py-1 text-sm bg-pharmacy-green text-white rounded-md hover:bg-green-600 disabled:bg-gray-400 disabled:cursor-not-allowed flex items-center justify-center w-24"
                                                     >
                                                         {redeemingProductId === p.id ? (
-                                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24">
                                                                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                             </svg>

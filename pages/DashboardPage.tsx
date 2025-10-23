@@ -152,7 +152,7 @@ const DashboardPage: React.FC = () => {
       setGlobalStats({ lowStock: lowStockCount });
 
       // 2. Top Selling Products (by quantity)
-      // FIX: Explicitly type the accumulator of the reduce function to ensure correct type inference for 'productCounts' and subsequently 'ventas'.
+// FIX: Explicitly type the accumulator of the reduce function to ensure correct type inference for 'productCounts' and subsequently 'ventas'.
       const productCounts = (allUserSalesDetailsRes.data || []).reduce((acc: {[key: string]: number}, detail) => {
           if (detail.producto_nombre) {
             acc[detail.producto_nombre] = (acc[detail.producto_nombre] || 0) + (detail.cantidad || 0);
@@ -166,7 +166,7 @@ const DashboardPage: React.FC = () => {
       setTopSellingProducts(topProducts);
 
       // 3. Payment Method Distribution (Pie Chart)
-      // FIX: Explicitly type the accumulator of the reduce function to ensure correct type inference for 'paymentData' and subsequently 'value'.
+// FIX: Explicitly type the accumulator of the reduce function to ensure correct type inference for 'paymentData' and subsequently 'value'.
       const paymentData = (allUserSalesRes.data || []).reduce((acc: {[key: string]: number}, sale) => {
           const method = sale.tipo_pago || 'Efectivo';
           acc[method] = (acc[method] || 0) + (sale.total || 0);

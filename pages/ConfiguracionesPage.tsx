@@ -373,7 +373,8 @@ const PaginaBienvenidaConfig: React.FC = () => {
 
     if (loading) return <div className="text-center p-10">Cargando constructor visual...</div>;
 
-    const enabledSocials = Object.entries(config.socials).filter(([, val]) => val.enabled && val.url);
+    // FIX: Cast `val` to avoid `unknown` type error with Object.entries.
+    const enabledSocials = Object.entries(config.socials).filter(([, val]) => (val as { enabled: boolean, url: string }).enabled && (val as { enabled: boolean, url: string }).url);
 
     return (
         <div className="space-y-6">
@@ -427,7 +428,10 @@ const PaginaBienvenidaConfig: React.FC = () => {
 
                      <AccordionItem title="Redes Sociales" isOpen={activeAccordion === 'socials'} onToggle={() => setActiveAccordion(activeAccordion === 'socials' ? null : 'socials')}>
                          <div className="space-y-4">
-                            {Object.entries(config.socials).map(([key, value]) => {
+                            {/* FIX: Use Object.keys for type-safe iteration over config.socials */}
+                            {Object.keys(config.socials).map((key) => {
+                                const socialKey = key as keyof typeof config.socials;
+                                const value = config.socials[socialKey];
                                 const Icon = socialIcons[key];
                                 return (
                                 <div key={key} className="flex items-center gap-4">
