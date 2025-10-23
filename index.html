@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>GestionFarma - Sistema Farmacéutico</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+      // Prevents FOUC (Flash of Unstyled Content) by applying the theme before the page loads.
+      if (localStorage.getItem('theme') === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+    </script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              'clinical-blue': '#007AFF',
+              'pharmacy-green': '#5CB85C',
+              'soft-gray': {
+                100: '#F3F4F6',
+                200: '#E5E7EB',
+              }
+            },
+            fontFamily: {
+              sans: ['Inter', 'sans-serif'],
+            },
+          }
+        }
+      }
+    </script>
+  <script type="importmap">
+{
+  "imports": {
+    "react/": "https://aistudiocdn.com/react@^19.2.0/",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "react-router-dom": "https://aistudiocdn.com/react-router-dom@^7.9.4",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.25.0",
+    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
+    "react-markdown": "https://aistudiocdn.com/react-markdown@^10.1.0",
+    "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.45.0"
+  }
+}
+</script>
+<style>
+  /* Estilos de scrollbar discretos y modernos */
+
+  /* Para navegadores Webkit (Chrome, Safari, Edge) */
+  ::-webkit-scrollbar {
+    width: 6px; /* Ancho del scrollbar vertical */
+    height: 6px; /* Alto del scrollbar horizontal */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent; /* Track transparente */
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #D1D5DB; /* Tailwind gray-300 */
+    border-radius: 10px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #9CA3AF; /* Tailwind gray-400 */
+  }
+  
+  .dark ::-webkit-scrollbar-thumb {
+    background: #4B5563; /* Tailwind gray-600 */
+  }
+
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: #6B7280; /* Tailwind gray-500 */
+  }
+
+
+  /* Para Firefox */
+  html {
+    scrollbar-width: thin;
+    scrollbar-color: #D1D5DB transparent; /* thumb y track */
+  }
+  
+  html.dark {
+    scrollbar-color: #4B5563 transparent;
+  }
+</style>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

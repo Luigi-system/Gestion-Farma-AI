@@ -1,0 +1,7 @@
+{
+  "name": "GestionFarma - Sistema de Ventas Farmacéutico",
+  "description": "Una aplicación web integral para la gestión farmacéutica, que maneja ventas, inventarios, caja, y consultas inteligentes con IA para optimizar la operación de farmacias y boticas.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
